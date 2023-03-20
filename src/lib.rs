@@ -1,18 +1,12 @@
-//! This crate provides an attribute macro for retrying tests multiple times before failing.
+//! # Test Retry
 //!
-//! # Examples
+//! [Documentation](https://docs.rs/test_retry) |
+//! [Github](https://github.com/caspervonb/test_retry) |
+//! [Crate](https://crates.io/crates/test_retry)
 //!
-//! By default retry will cause the test to be called three times before failing:
-//! ```
-//! use std::sync::atomic::{AtomicUsize, Ordering};
+//! An attribute macro that can be used to retry non-idempotent tests multiple times before
+//! resulting in a failure.
 //!
-//! #[test]
-//! #[retry]
-//! fn default() {
-//!   static COUNTER: AtomicUsize = AtomicUsize::new(1);
-//!   assert_eq!(counter.fetch_add(1, Ordering::Relaxed), 3);
-//! }
-//! ```
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn};
