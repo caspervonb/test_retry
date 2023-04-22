@@ -9,7 +9,7 @@
 //!
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn};
+use syn::{parse_macro_input, AttributeArgs, ItemFn, NestedMeta};
 
 /// An attribute which can be used with `#[test]` in order to retry a single
 /// test multiple times before failing.
@@ -28,24 +28,31 @@ use syn::{parse_macro_input, ItemFn};
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn retry(_args: TokenStream, input: TokenStream) -> TokenStream {
-    // TODO add count as an argument
-    let count = 3;
+pub fn retry(args: TokenStream, input: TokenStream) -> TokenStream {
+    let attr_args = parse_macro_input!(args as AttributeArgs);
+    let mut count = 3;
 
-    let input = parse_macro_input!(input as ItemFn);
-    let attrs = input.attrs.clone();
-    let name = input.sig.ident.clone();
+    for arg in attr_args {
+        if let NestedMeta::Meta(syn::Meta::NameValue(name_value)) = arg {
+            if name_value.path.is_ident("count") {
+                if let syn::Lit::Int(lit_int) = name_value.lit {
+                    count = lit_int.base10_parse().unwrap();
+                }
+            }
+        }
+    }
 
-    TokenStream::from(quote! {
-        #(#attrs),*
-        fn #name() {
-            #input
+    let mut input_fn = parse_macro_input!(input as ItemFn);
 
+    let input_fn_attrs = &input_fn.attrs;
+    let input_fn_sig = &input_fn.sig;
+    let input_fn_block = &input_fn.block;
+
+    let output = quote! {
+        #(#input_fn_attrs)*
+        #input_fn_sig {
             for i in 0..#count {
-                let result = std::panic::catch_unwind(|| {
-                    #name();
-                });
-
+                let result = std::panic::catch_unwind(|| #input_fn_block);
                 if result.is_ok() {
                     return;
                 }
@@ -55,5 +62,7 @@ pub fn retry(_args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
         }
-    })
+    };
+
+    output.into()
 }
